@@ -6,17 +6,19 @@
     <link rel="stylesheet" href="/css/style.css">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Home Page</title>
+    <title>User Profile</title>
 </head>
 
 <body>
     {{>nav this}}
-    <h1>Home Page</h1>
-    <script src="/js/main.js"></script>
-    {{#each users}}
-    <h2>{{this.name}}</h2>
-    <h3>{{this.email}}</h3>
-    {{/each}}
+    <h1>User Profile: </h1>
+    <h3>Name: {{name}}</h3>
+    <h3>Email: {{email}}</h3>
+    <h3>Pasword: {{password}}</h3>
+
+    <form action="/delete/{{id}}" method="post">
+        <button type="submit">Delete User</button>
+    </form>
 </body>
 
 </html>
