@@ -16,6 +16,11 @@
     <h3>Email: {{email}}</h3>
     <h3>Pasword: {{password}}</h3>
 
+    {{#each allPosts}}
+    <h2>{{this.title}}</h2>
+    <p>{{this.body}}</p>
+    {{/each}}
+
     <form action="/delete/{{id}}" method="post">
         <button type="submit">Delete User</button>
     </form>

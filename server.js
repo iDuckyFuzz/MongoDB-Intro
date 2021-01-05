@@ -6,6 +6,7 @@ const path = require('path');
 const hbs = require('hbs');
 require('dotenv').config();
 const User = require('./models/user');
+const Blog = require('./models/blog');
 const bcrypt = require('bcryptjs');
 
 //connect to mongodb database
@@ -58,11 +59,16 @@ app.get('/register', (req, res) => {
 app.get('/profile/:id', async (req, res) => {
     //could use a try catch here 
     const user = await User.findById(req.params.id);
+    // we can get extra details using populate
+    const name = await Blog.find({ user: req.params.id }).populate('user', 'name email password');
+    console.log(name);
+    const allPosts = await Blog.find({ user: req.params.id });
     res.render("profile", {
         id: user._id,
         name: user.name,
         email: user.email,
         password: user.password,
+        allPosts: allPosts
     });
 });
 
@@ -83,9 +89,27 @@ app.get('/profile/update/:id', async (req, res) => {
 app.post('/delete/:id', async (req, res) => {
     //could use a try catch if the user doesn't exist
     await User.findByIdAndDelete(req.params.id)
-
     res.send("Delete Succesful!");
 });
+
+
+app.get('/blogpost/:id', (req, res) => {
+    res.render("blogPost", {
+        id: req.params.id
+    });
+});
+
+app.post('/blogpost/:id', async (req, res) => {
+    await Blog.create({
+        user: req.params.id,
+        title: req.body.title,
+        body: req.body.body,
+    })
+
+    res.send("Post Succesful")
+});
+
+
 
 app.get('/login', (req, res) => {
     res.render("login");
@@ -93,10 +117,18 @@ app.get('/login', (req, res) => {
 
 app.post('/login', async (req, res) => {
     //add bycrypt compare of provided user & password
-    const error = "login failed";
-    res.render("login", {
-        error: error
-    });
+    const user = await User.findOne({ name: req.body.userName })
+
+    const isMatch = await bcrypt.compare(req.body.pword, user.password)
+
+    if (isMatch) {
+        res.render("index")
+    } else {
+        const error = "login failed";
+        res.render("login", {
+            error: error
+        });
+    }
 });
 
 app.post('/register', async (req, res) => {
@@ -108,8 +140,6 @@ app.post('/register', async (req, res) => {
         email: req.body.userEmail,
         password: hashedPassword
     })
-
-
 
     res.send("User registered");
 });
