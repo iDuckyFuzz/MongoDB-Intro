@@ -12,11 +12,12 @@
 <body>
     {{>nav this}}
     <h1>Home Page</h1>
-    <script src="/js/main.js"></script>
+    <h2>{{message}}</h2>
     {{#each users}}
     <h2>{{this.name}}</h2>
     <h3>{{this.email}}</h3>
     {{/each}}
+    <script src="/js/main.js"></script>
 </body>
 
 </html>

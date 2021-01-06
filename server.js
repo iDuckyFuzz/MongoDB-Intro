@@ -7,7 +7,10 @@ const hbs = require('hbs');
 require('dotenv').config();
 const User = require('./models/user');
 const Blog = require('./models/blog');
+const auth = require('./middlewares/auth');
 const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
+const cookieParser = require('cookie-parser');
 
 //connect to mongodb database
 mongoose.connect(process.env.DB_URL, {
@@ -36,6 +39,7 @@ app.set('views', viewsPath);
 
 app.use(express.urlencoded({ extended: false }));
 app.use(express.json({ extended: false }));
+app.use(cookieParser());
 
 //setting the views from hbs to come from our views path variable
 app.set('views', viewsPath);
@@ -56,12 +60,14 @@ app.get('/register', (req, res) => {
     res.render("register");
 });
 
-app.get('/profile/:id', async (req, res) => {
+//we can add a middleware function
+app.get('/profile/:id', auth.isLoggedIn, async (req, res) => {
+
+    console.log(req.user.name);
     //could use a try catch here 
     const user = await User.findById(req.params.id);
     // we can get extra details using populate
     const name = await Blog.find({ user: req.params.id }).populate('user', 'name email password');
-    console.log(name);
     const allPosts = await Blog.find({ user: req.params.id });
     res.render("profile", {
         id: user._id,
@@ -117,13 +123,32 @@ app.get('/login', (req, res) => {
 
 app.post('/login', async (req, res) => {
     //add bycrypt compare of provided user & password
-    const user = await User.findOne({ name: req.body.userName })
+    try {
+        const user = await User.findOne({ name: req.body.userName })
+        const isMatch = await bcrypt.compare(req.body.pword, user.password)
 
-    const isMatch = await bcrypt.compare(req.body.pword, user.password)
-
-    if (isMatch) {
-        res.render("index")
-    } else {
+        if (isMatch) {
+            // create a token to sign to authenticate
+            const token = jwt.sign({id: user._id}, process.env.JWT_SECRET, {
+                expiresIn: process.env.JWT_EXPIRES_IN,
+            });
+            const cookieOptions = {
+                expires: new Date(
+                    Date.now() + process.env.JWT_COOKIE_EXPIRES * 24 * 60 * 60 * 1000
+                ),
+                httpOnly:true
+            }
+            res.cookie('jwt', token, cookieOptions);
+            res.render("index", {
+                message: "Succesfully Logged in!"
+            })
+        } else {
+            const error = "login failed";
+            res.render("login", {
+                error: error
+            });
+        }
+    } catch (err) {
         const error = "login failed";
         res.render("login", {
             error: error
