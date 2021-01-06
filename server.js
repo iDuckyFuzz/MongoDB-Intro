@@ -48,34 +48,66 @@ app.set('view engine', 'hbs');
 //set express to use the static files
 app.use(express.static(publicDirectory));
 
-app.get('/', async (req, res) => {
-
-    const users = await User.find();
-    res.render("index", {
-        users: users
-    });
+app.get('/', auth.isLoggedIn, async (req, res) => {
+    if(req.user){
+        console.log("User found");
+        const users = await User.find();
+        if(req.user.admin){
+            const users = await User.find();
+            console.log("You are an admin");
+            res.render("index", {
+                users: users
+            });
+        }else{
+            res.render("index");
+        }
+    }else{
+        console.log("You are a guest");
+        res.render("index");
+    }
 });
+
+app.get('/logout', auth.logout, (req, res) => {
+    res.render("login",{
+        error: "You have logged out!"
+    });
+})
 
 app.get('/register', (req, res) => {
     res.render("register");
 });
 
-//we can add a middleware function
-app.get('/profile/:id', auth.isLoggedIn, async (req, res) => {
+//we can add a middleware function to handle authenication
+// 
+app.get('/profile', auth.isLoggedIn, async (req, res) => {
 
-    console.log(req.user.name);
-    //could use a try catch here 
-    const user = await User.findById(req.params.id);
-    // we can get extra details using populate
-    const name = await Blog.find({ user: req.params.id }).populate('user', 'name email password');
-    const allPosts = await Blog.find({ user: req.params.id });
-    res.render("profile", {
-        id: user._id,
-        name: user.name,
-        email: user.email,
-        password: user.password,
-        allPosts: allPosts
-    });
+    try {
+        //you will only be able to view the users profile
+        if(req.user){
+        console.log(req.user.name);
+        //could use a try catch here 
+        //const user = await User.findById(req.params.id);
+
+        const user = req.user
+
+
+        // we can get extra details using populate
+        const name = await Blog.find({ user: user._id }).populate('user', 'name email password');
+        const allPosts = await Blog.find({ user: user._id });
+        res.render("profile", {
+            id: user._id,
+            name: user.name,
+            email: user.email,
+            password: user.password,
+            allPosts: allPosts
+        });
+    }else{
+        //probably went to redirect them to register?
+        res.render("profile");
+    }
+    } catch (err) {
+        res.send("Unable to display profile");
+    }
 });
 
 app.get('/profile/update/:id', async (req, res) => {
@@ -129,14 +161,14 @@ app.post('/login', async (req, res) => {
 
         if (isMatch) {
             // create a token to sign to authenticate
-            const token = jwt.sign({id: user._id}, process.env.JWT_SECRET, {
+            const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, {
                 expiresIn: process.env.JWT_EXPIRES_IN,
             });
             const cookieOptions = {
                 expires: new Date(
                     Date.now() + process.env.JWT_COOKIE_EXPIRES * 24 * 60 * 60 * 1000
                 ),
-                httpOnly:true
+                httpOnly: true
             }
             res.cookie('jwt', token, cookieOptions);
             res.render("index", {
